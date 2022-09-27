@@ -1,0 +1,306 @@
+---
+title: "Assignment 1"
+subtitle: "Regression Models"
+author: "Javier Fong 100437994" 
+output: "html_document"
+---
+
+```{r, echo = F, message = F, warning = F}
+library(rstudioapi)
+setwd(dirname(getActiveDocumentContext()$path)) 
+
+library(dplyr)
+library(GGally)
+library(MASS)
+
+knitr::opts_chunk$set(
+  fig.align = "center"
+)
+```
+
+
+1. Show that the properties of least squares estimators are satisfied using the following definitions. 
+ 
+$$ \hat{\beta} = (X^{T}X)^{-1}X^{T}Y $$
+$$ \hat{Y} = X\hat{\beta} =  X(X^{T}X)^{-1}X^{T}Y = HY$$
+$$ \hat{\varepsilon} = Y - \hat{Y} = (I - H) Y$$
+
+Important notes: 
+
+Given that $H$ is symmetric, then 
+$$ H = H^{T} $$ 
+and, 
+$$ HH = (X(X^{T}X)^{-1}X^{T})(X(X^{T}X)^{-1}X^{T}) = X(X^{T}X)^{-1}(X^{T}X)(X^{T}X)^{-1}X^{T} = X(X^{T}X)^{-1}X^{T} = H $$
+
+Least Squares Properties 
+
+i. $1^{T}(I-H)Y = 0$
+ii. $1^{T}Y = 1^{T}\hat{Y}$
+iii. $X^{T}\hat{\varepsilon} = 0$
+iv. $\hat{Y}^{T}\hat{\varepsilon} = 0$
+
+Demonstrations: 
+
+* $1^{T}(I-H)Y = 0$
+
+Proof, 
+$$ 1^{T}(I-H)Y = (1^{T}I-1^{T}H)Y $$
+$$ 1^{T}(I-H)Y = (1^{T}-1^{T})Y $$
+$$ 1^{T}(I-H)Y = 0Y $$
+$$ 1^{T}(I-H)Y = 0 \square $$
+* $1^{T}Y = 1^{T}\hat{Y}$
+
+Proof, 
+
+$$ 1^{T}\hat{Y} = 1^{T}HY $$
+$$ 1^{T}\hat{Y} = (H^{T}1)^{T}Y $$
+$$ 1^{T}\hat{Y} = (H1)^{T}Y $$
+$$ 1^{T}\hat{Y} = 1^{T}Y \square$$
+
+* $X^{T}\hat{\varepsilon} = 0$
+
+Proof, 
+
+$$ X^{T}\hat{\varepsilon} = X^{T}(Y - \hat{Y})$$
+$$ X^{T}\hat{\varepsilon} = X^{T}(Y - HY)$$
+$$ X^{T}\hat{\varepsilon} = X^{T}Y - X^{T}HY$$
+$$ X^{T}\hat{\varepsilon} = X^{T}Y - X^{T}X(X^{T}X)^{-1}X^{T}Y$$
+$$ X^{T}\hat{\varepsilon} = X^{T}Y - X^{T}Y$$
+$$ X^{T}\hat{\varepsilon} = 0 \square$$
+
+* $\hat{Y}^{T}\hat{\varepsilon} = 0$
+
+Proof, 
+
+$$\hat{Y}^{T}\hat{\varepsilon} = (HY)^{T}(I - H)Y$$
+$$\hat{Y}^{T}\hat{\varepsilon} = Y^{T}H(Y - HY)$$
+$$\hat{Y}^{T}\hat{\varepsilon} = Y^{T}HY - Y^{T}HHY$$
+$$\hat{Y}^{T}\hat{\varepsilon} = Y^{T}HY - Y^{T}HY$$
+$$\hat{Y}^{T}\hat{\varepsilon} = 0\square$$
+
+2. Using the model *modall*, check numerically that the properties of the least squares estimates are satisfied. 
+
+```{r}
+bodyfat = read.csv("../Datasets/bodyfat.txt", sep = "")
+modall = lm (
+  hwfat ~ . 
+  , bodyfat
+)
+summary(modall)
+```
+
+* Sum of residuals is 0: 
+```{r}
+modall$residuals %>% 
+  sum() %>% 
+  round(10)
+```
+
+* Sum of the observed data is equal to the sum of the fitted values: 
+```{r}
+modall$fitted.values %>% sum()
+bodyfat$hwfat %>% sum()
+```
+
+* The residuals are orthogonal to the predictors: 
+```{r}
+(bodyfat[,-7] * modall$residuals) %>% 
+  sum() %>% 
+  round(10)
+```
+
+* The residuals are orthogonal to the fitted values: 
+```{r}
+(modall$residuals * modall$fitted.values) %>% 
+  sum() %>% 
+  round(10)
+```
+
+3. Check that for the data set *index.txt*, the least squares estimates of the parameters are: $\hat\beta_{o}=4.267$ and $\hat\beta_{1}=1.373$, using the results in section 2.4.1 (not using the lm() function). 
+
+```{r}
+indexdata = read.csv("../Datasets/index.txt", sep = "\t")
+beta_one = cov(indexdata$PovPct, indexdata$Brth15to17)/var(indexdata$PovPct)
+beta_zero = mean(indexdata$Brth15to17) - (beta_one * mean(indexdata$PovPct))
+
+beta_zero
+beta_one
+```
+
+4. Given the response variable $y$ and the covariates $x2$ and $x3$ in the dataset *Transform_V2.txt* data set, check if is necessary to transform any variable and the residual graphs to show that the transformed model is correct. 
+
+```{r, message=F}
+transformdata = read.csv("../Datasets/Transform_V2.txt", sep = "\t")
+
+ggpairs(transformdata[,c(1,3,4)])
+```
+
+From the above plot, we could improve the linearity of y and x2 by transforming x2. 
+
+```{r, message=F, warning=F}
+transformdata2 = transformdata 
+transformdata2$x2 = sqrt(transformdata2$x2)
+
+ggpairs(transformdata2[,c(1,3,4)])
+```
+Transforming x2 by apply a square root improve the linearity of the relationship. 
+
+```{r, fig.cap = "Diagnostic Plots for Original Linear Model" }
+model_t1 = lm(y ~ x2 + x3, transformdata)
+par(mfrow = c(2,2))
+plot(model_t1)
+```
+
+```{r, fig.cap = "Diagnostic Plot for Transformed Linear Model" }
+model_t2 = lm(y ~ x2 + x3, transformdata2)
+par(mfrow = c(2,2))
+plot(model_t2)
+```
+
+We see that this transformation also improved the variance of the residuals. 
+
+5. Given the response variable $y$ and the covariates $x1$ and $x2$ in the dataset *Transform2_V2.txt* data set, check if is necessary to transform any variable and the residual graphs to show that the transformed model is correct. 
+
+```{r, message=F}
+transformdata = read.csv("../Datasets/Transform2_V2.txt", sep = "\t")
+
+ggpairs(transformdata)
+```
+
+We can improve the linearity of both relationships (y ~ x1, y ~ x2). For this we'll use the boxcox method. 
+
+```{r, message=F, warning=F}
+par(mfrow = c(1,2))
+transformdata2 = transformdata 
+
+boxcox(lm(y2 ~ x1, transformdata2), lambda = seq(-1.5,-0.5, 0.01))
+boxcox(lm(y2 ~ x2, transformdata2), lambda = seq(-1.5,-0.5, 0.01))
+```
+
+From the plots above we get that the best possible $\lambda$ for both is near -1. 
+
+So we transform both variables as follows, 
+
+```{r}
+transformdata2 = transformdata 
+transformdata2$x1 = (transformdata2$x1^(-1) - 1)/(-1)
+transformdata2$x2 = (transformdata2$x2^(-1) - 1)/(-1)
+
+ggpairs(transformdata2)
+```
+
+Comparing to the previous plots, there is an improvement in the linearty of both relationships. 
+
+```{r, fig.cap = "Diagnostic Plots for Original Linear Model" }
+model_t1 = lm(y2 ~ x1 + x2, transformdata)
+par(mfrow = c(2,2))
+plot(model_t1)
+```
+
+```{r, fig.cap = "Diagnostic Plot for Transformed Linear Model" }
+model_t2 = lm(y2 ~ x1 + x2, transformdata2)
+par(mfrow = c(2,2))
+plot(model_t2)
+```
+
+We see that this transformation also improved the variance of the residuals. 
+
+7. Calculate the value of $R^{2}$ and $R^{2}_{a}$ for model *fit.ridge* and compare them with the result of *modall* (modall = lm(hwfat ~ .))
+
+```{r, message = F, warning = F}
+library(glmnet)
+x = model.matrix(hwfat ~ .-1, bodyfat)
+fit.ridge = glmnet(x, bodyfat$hwfat, alpha = 0)
+cv.out = cv.glmnet(x, bodyfat$hwfat, alpha = 0)
+
+lambda_opt = cv.out$lambda.min
+predicted = predict(fit.ridge, s = lambda_opt, newx= x)
+
+
+SSE = sum((predicted - bodyfat$hwfat)^2)
+SST = sum((bodyfat$hwfat - mean(bodyfat$hwfat))^2)
+n = nrow(bodyfat)
+k = ncol(bodyfat)
+
+ridge_rsquared = 1 - SSE/SST
+ridge_adj_rsquared = 1 - (SSE/(n-k-1))/(SST/(n-1))
+
+ridge_rsquared
+ridge_adj_rsquared
+```
+
+```{r}
+modall = lm(hwfat ~ ., bodyfat)
+summary(modall)$r.squared
+summary(modall)$adj.r.squared
+```
+
+When comparing both set of values for the model, we can see that both are larger for the linear model. 
+
+$$ R^{2}_{lm} > R^{2}_{ridge} $$
+$$ R^{2}_{a-lm} > R^{2}_{a-ridge} $$
+
+8. The dataset *insurance.csv* contains data of insurance premiums paid by people in USA depending on their personal characteristics. 
+
+a. Find the model that give the best prediction (take into account that interactions between variables may be present)
+b. What is the profile of the people that pay more (or less) for their insurance? 
+
+```{r, echo = F}
+insurance = read.csv("../Datasets/insurance.csv", stringsAsFactors = T)
+insurance$charges = log(insurance$charges)
+```
+
+## Barckwards Selection 
+
+```{r}
+modall = lm(charges ~ . + age:sex + age:bmi + age:children + age:smoker + age:region + sex:bmi + sex:children + sex:smoker + sex:region + bmi:children + bmi:smoker + bmi:region + children:smoker + children:region + smoker:region, insurance)
+drop1(modall, test = "F")
+
+newmod = update(modall, . ~ . - bmi:children)
+drop1(newmod, test = "F")
+
+newmod = update(newmod, . ~ . - sex:children)
+drop1(newmod, test = "F")
+
+newmod = update(newmod, . ~ . - sex:region)
+drop1(newmod, test = "F")
+
+newmod = update(newmod, . ~ . - sex:bmi)
+drop1(newmod, test = "F")
+
+newmod = update(newmod, . ~ . - children:region)
+drop1(newmod, test = "F")
+
+newmod = update(newmod, . ~ . - smoker:region)
+drop1(newmod, test = "F")
+
+newmod = update(newmod, . ~ . - age:bmi)
+drop1(newmod, test = "F")
+
+newmod = update(newmod, . ~ . - region)
+drop1(newmod, test = "F")
+
+newmod = update(newmod, . ~ . - sex:smoker)
+drop1(newmod, test = "F")
+
+```
+
+
+```{r}
+options(scipen = 10)
+summary(newmod)
+
+
+par(mfrow = c(2,2))
+plot(newmod)
+```
+
+*Note: All this coefficients must be interpreted taking into account that the response variable was logged transformed at the beggining of the procedure. 
+
+Profile of people who pay more: 
+- The older you are, the more you pay. 
+- Females pay more than males (~23%). 
+- Every child adds a 33% increase in your charges. 
+- Smokers also pay more. 
+
+
